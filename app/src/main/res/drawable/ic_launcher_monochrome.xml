@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Page with the lens cut out -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M40,29L62,29L73,40L73,75Q73,79 69,79L40,79Q36,79 36,75L36,33Q36,29 40,29Z M54.5,54m-10,0a10,10 0,1 0,20 0a10,10 0,1 0,-20 0" />
+    <!-- Lens pupil -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54.5,54m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+</vector>

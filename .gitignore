@@ -1,0 +1,31 @@
+# Gradle
+.gradle/
+.kotlin/
+build/
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local configuration
+local.properties
+
+# Signing — never commit keys or passwords
+keystore.properties
+*.jks
+*.keystore
+
+# Generated APKs and bundles
+*.apk
+*.aab
+release/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local release signing key
+signing/
