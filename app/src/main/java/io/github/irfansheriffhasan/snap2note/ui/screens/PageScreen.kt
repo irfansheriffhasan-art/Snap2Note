@@ -35,12 +35,14 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -96,6 +98,7 @@ fun PageScreen(
   initialPageId: Long,
   viewModel: NoteViewModel,
   onBack: () -> Unit,
+  onEditPage: (Long) -> Unit,
   onOpenSettings: () -> Unit,
 ) {
   val context = LocalContext.current
@@ -190,6 +193,17 @@ fun PageScreen(
               .padding(12.dp)
               .clickable { fullScreenPage = pagerPage },
           )
+        }
+        FilledTonalButton(
+          onClick = { onEditPage(page.id) },
+          contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+          modifier = Modifier
+            .align(Alignment.BottomStart)
+            .padding(12.dp),
+        ) {
+          Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+          Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+          Text("Edit")
         }
         FilledTonalIconButton(
           onClick = { fullScreenPage = page },

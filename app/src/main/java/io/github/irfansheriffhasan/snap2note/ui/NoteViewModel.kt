@@ -1,5 +1,6 @@
 package io.github.irfansheriffhasan.snap2note.ui
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -16,6 +17,7 @@ import io.github.irfansheriffhasan.snap2note.data.AddPagesResult
 import io.github.irfansheriffhasan.snap2note.data.FolderWithStats
 import io.github.irfansheriffhasan.snap2note.data.NoteRepository
 import io.github.irfansheriffhasan.snap2note.data.Page
+import io.github.irfansheriffhasan.snap2note.data.PageEdits
 import io.github.irfansheriffhasan.snap2note.data.SettingsRepository
 import io.github.irfansheriffhasan.snap2note.data.ThemeMode
 import kotlinx.coroutines.CancellationException
@@ -200,6 +202,16 @@ class NoteViewModel(
 
   fun renamePage(page: Page, title: String) {
     viewModelScope.launch { repository.renamePage(page.id, title) }
+  }
+
+  suspend fun loadPageBitmap(page: Page, maxSide: Int): Bitmap? = repository.loadPageBitmap(page, maxSide)
+
+  fun editPage(page: Page, edits: PageEdits, onDone: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val saved = repository.editPage(page, edits)
+      if (saved) refreshStorageUsed() else showMessage("Couldn't save the edited page.")
+      onDone(saved)
+    }
   }
 
   // endregion

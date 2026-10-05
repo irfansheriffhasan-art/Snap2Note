@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -63,6 +64,8 @@ import io.github.irfansheriffhasan.snap2note.ui.components.openUrl
 
 private const val API_KEY_URL = "https://aistudio.google.com/apikey"
 private const val SOURCE_URL = "https://github.com/irfansheriffhasan-art/Snap2Note"
+private const val DEVELOPER_NAME = "Irfan Sheriff H"
+private const val DEVELOPER_LINKEDIN_URL = "https://www.linkedin.com/in/irfan-sheriff-h-488562429/"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,6 +154,20 @@ fun SettingsScreen(viewModel: NoteViewModel) {
 
       item {
         SettingsGroup("About") {
+          SettingsRow(
+            icon = Icons.Outlined.Person,
+            title = "Built by $DEVELOPER_NAME",
+            subtitle = "Connect on LinkedIn",
+            trailing = {
+              Icon(
+                Icons.AutoMirrored.Outlined.OpenInNew,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            },
+            onClick = { context.openUrl(DEVELOPER_LINKEDIN_URL) },
+          )
+          HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
           SettingsRow(
             icon = Icons.Outlined.Lock,
             title = "Privacy",

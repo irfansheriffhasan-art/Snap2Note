@@ -46,6 +46,9 @@ interface PageDao {
   @Query("UPDATE pages SET title = :title WHERE id = :id")
   suspend fun updateTitle(id: Long, title: String?)
 
+  @Query("UPDATE pages SET fileName = :fileName WHERE id = :id")
+  suspend fun updateFileName(id: Long, fileName: String)
+
   @Query(
     """
     UPDATE pages

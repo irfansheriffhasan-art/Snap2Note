@@ -2,7 +2,13 @@ package io.github.irfansheriffhasan.snap2note.data
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Rect
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import java.io.InputStream
@@ -29,6 +35,64 @@ internal object ImageProcessing {
     val decoded = stream.use { BitmapFactory.decodeStream(it, null, options) } ?: return null
     val rotation = open()?.use(::readRotation) ?: 0
     return decoded.scaledToFit(maxSide).rotated(rotation)
+  }
+
+  /**
+   * Returns false for a JPEG that is missing its end-of-image marker. Some camera apps report
+   * success before they finish writing the photo, and decoding such a file fills the missing
+   * rows with black. Other formats are assumed complete.
+   */
+  fun isCompleteImage(bytes: ByteArray): Boolean {
+    if (bytes.isEmpty()) return false
+    val isJpeg = bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte()
+    if (!isJpeg) return true
+    // Some encoders pad the file after the marker, so skip trailing zero bytes.
+    var end = bytes.lastIndex
+    while (end > 1 && bytes[end] == 0.toByte()) end--
+    return bytes[end - 1] == 0xFF.toByte() && bytes[end] == 0xD9.toByte()
+  }
+
+  /** Returns an opaque copy with transparent areas painted white, since JPEG has no alpha. */
+  fun Bitmap.flattenedOnWhite(): Bitmap {
+    if (!hasAlpha()) return this
+    val flat = createBitmap(width, height)
+    Canvas(flat).apply {
+      drawColor(Color.WHITE)
+      drawBitmap(this@flattenedOnWhite, 0f, 0f, null)
+    }
+    recycle()
+    return flat
+  }
+
+  /** Rotates by a multiple of 90 degrees and optionally mirrors horizontally. */
+  fun Bitmap.oriented(rotation: Int, flipHorizontal: Boolean): Bitmap {
+    if (rotation % 360 == 0 && !flipHorizontal) return this
+    val matrix = Matrix().apply {
+      if (flipHorizontal) postScale(-1f, 1f)
+      postRotate(rotation.toFloat())
+    }
+    return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
+  }
+
+  /** Applies [edits] to a page image and returns a new bitmap. [source] is left untouched. */
+  fun applyEdits(source: Bitmap, edits: PageEdits): Bitmap {
+    val oriented = source.oriented(edits.rotation, edits.flipHorizontal)
+    val crop = edits.crop
+    val left = (crop.left * oriented.width).roundToInt().coerceIn(0, oriented.width - 1)
+    val top = (crop.top * oriented.height).roundToInt().coerceIn(0, oriented.height - 1)
+    val right = (crop.right * oriented.width).roundToInt().coerceIn(left + 1, oriented.width)
+    val bottom = (crop.bottom * oriented.height).roundToInt().coerceIn(top + 1, oriented.height)
+
+    val output = createBitmap(right - left, bottom - top)
+    val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+      colorFilter = ColorMatrixColorFilter(android.graphics.ColorMatrix(edits.colorMatrix()))
+    }
+    Canvas(output).apply {
+      drawColor(Color.WHITE)
+      drawBitmap(oriented, Rect(left, top, right, bottom), Rect(0, 0, output.width, output.height), paint)
+    }
+    if (oriented !== source) oriented.recycle()
+    return output
   }
 
   private fun readRotation(stream: InputStream): Int =

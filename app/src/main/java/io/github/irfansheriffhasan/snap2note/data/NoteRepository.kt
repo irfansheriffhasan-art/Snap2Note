@@ -9,9 +9,12 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.room.withTransaction
 import io.github.irfansheriffhasan.snap2note.ai.PageAnalysis
+import io.github.irfansheriffhasan.snap2note.data.ImageProcessing.flattenedOnWhite
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -94,16 +97,84 @@ class NoteRepository(private val context: Context, private val database: AppData
       flashcardsJson = flashcardsJson,
     )
 
-  private fun savePageImage(source: Uri, target: File): Boolean {
+  /** Decodes a page image for the editor preview, at most [maxSide] pixels on its longest side. */
+  suspend fun loadPageBitmap(page: Page, maxSide: Int): Bitmap? = withContext(Dispatchers.IO) {
+    val file = pageFile(page)
+    try {
+      ImageProcessing.decode(maxSide) { if (file.exists()) file.inputStream() else null }
+    } catch (e: Exception) {
+      null
+    } catch (e: OutOfMemoryError) {
+      null
+    }
+  }
+
+  /**
+   * Applies [edits] to the page image. The result is written to a new file so image caches
+   * pick up the change, and the old file is removed once the page points at the new one.
+   */
+  suspend fun editPage(page: Page, edits: PageEdits): Boolean = withContext(Dispatchers.IO) {
+    val source = pageFile(page)
+    val original = try {
+      ImageProcessing.decode(MAX_PAGE_SIDE) { if (source.exists()) source.inputStream() else null }
+    } catch (e: OutOfMemoryError) {
+      null
+    } ?: return@withContext false
+
+    val edited = try {
+      ImageProcessing.applyEdits(original, edits)
+    } catch (e: Exception) {
+      null
+    } catch (e: OutOfMemoryError) {
+      null
+    } finally {
+      original.recycle()
+    } ?: return@withContext false
+
+    val fileName = "page_${UUID.randomUUID()}.jpg"
+    val target = File(pagesDir, fileName)
+    if (!writeJpeg(edited, target)) return@withContext false
+    pageDao.updateFileName(page.id, fileName)
+    if (source.name != fileName) source.delete()
+    true
+  }
+
+  private suspend fun savePageImage(source: Uri, target: File): Boolean {
+    val bytes = readCompleteImage(source) ?: return false
     val bitmap = try {
-      ImageProcessing.decode(MAX_PAGE_SIDE) { context.contentResolver.openInputStream(source) }
+      ImageProcessing.decode(MAX_PAGE_SIDE) { ByteArrayInputStream(bytes) }?.flattenedOnWhite()
     } catch (e: Exception) {
       null
     } catch (e: OutOfMemoryError) {
       null
     } ?: return false
+    return writeJpeg(bitmap, target)
+  }
 
-    return try {
+  /**
+   * Reads the whole image, waiting briefly while it is still being written. Camera apps on
+   * some phones return before the photo is fully saved, and decoding it at that point gives a
+   * page whose lower part is black.
+   */
+  private suspend fun readCompleteImage(source: Uri): ByteArray? {
+    var bytes: ByteArray? = null
+    repeat(INCOMPLETE_IMAGE_RETRIES) { attempt ->
+      bytes = try {
+        context.contentResolver.openInputStream(source)?.use { it.readBytes() }
+      } catch (e: Exception) {
+        null
+      } catch (e: OutOfMemoryError) {
+        return null
+      }
+      if (bytes?.let(ImageProcessing::isCompleteImage) == true) return bytes
+      if (attempt < INCOMPLETE_IMAGE_RETRIES - 1) delay(INCOMPLETE_IMAGE_RETRY_DELAY_MS)
+    }
+    // Still incomplete: keep what is there rather than losing the page. It can be cropped later.
+    return bytes?.takeIf { it.isNotEmpty() }
+  }
+
+  private fun writeJpeg(bitmap: Bitmap, target: File): Boolean =
+    try {
       FileOutputStream(target).use { bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }
     } catch (e: Exception) {
       target.delete()
@@ -111,7 +182,6 @@ class NoteRepository(private val context: Context, private val database: AppData
     } finally {
       bitmap.recycle()
     }
-  }
 
   private suspend fun deleteFiles(pages: List<Page>) = withContext(Dispatchers.IO) {
     pages.forEach { pageFile(it).delete() }
@@ -203,6 +273,8 @@ class NoteRepository(private val context: Context, private val database: AppData
     const val MAX_PAGE_SIDE = 2560
     const val JPEG_QUALITY = 90
     const val CAPTURE_MAX_AGE_MS = 24 * 60 * 60 * 1000L
+    const val INCOMPLETE_IMAGE_RETRIES = 16
+    const val INCOMPLETE_IMAGE_RETRY_DELAY_MS = 250L
 
     // A4 in PostScript points (1/72 inch).
     const val A4_SHORT_SIDE = 595

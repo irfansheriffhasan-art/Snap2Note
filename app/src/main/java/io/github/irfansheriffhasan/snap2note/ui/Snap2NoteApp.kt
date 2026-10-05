@@ -41,6 +41,7 @@ import androidx.navigation.navArgument
 import io.github.irfansheriffhasan.snap2note.ui.screens.FolderScreen
 import io.github.irfansheriffhasan.snap2note.ui.screens.FoldersScreen
 import io.github.irfansheriffhasan.snap2note.ui.screens.HomeScreen
+import io.github.irfansheriffhasan.snap2note.ui.screens.PageEditorScreen
 import io.github.irfansheriffhasan.snap2note.ui.screens.PageScreen
 import io.github.irfansheriffhasan.snap2note.ui.screens.SaveToFolderScreen
 import io.github.irfansheriffhasan.snap2note.ui.screens.ScanScreen
@@ -57,12 +58,15 @@ object Routes {
   const val SAVE = "save"
   const val FOLDER = "folder/{$ARG_FOLDER_ID}"
   const val PAGE = "folder/{$ARG_FOLDER_ID}/page/{$ARG_PAGE_ID}"
+  const val EDIT_PAGE = "folder/{$ARG_FOLDER_ID}/page/{$ARG_PAGE_ID}/edit"
   const val SCAN = "folder/{$ARG_FOLDER_ID}/scan"
   const val ASSISTANT = "folder/{$ARG_FOLDER_ID}/assistant"
 
   fun folder(folderId: Long) = "folder/$folderId"
 
   fun page(folderId: Long, pageId: Long) = "folder/$folderId/page/$pageId"
+
+  fun editPage(folderId: Long, pageId: Long) = "folder/$folderId/page/$pageId/edit"
 
   fun scan(folderId: Long) = "folder/$folderId/scan"
 
@@ -180,7 +184,22 @@ fun Snap2NoteApp(viewModel: NoteViewModel) {
           initialPageId = pageId,
           viewModel = viewModel,
           onBack = { navController.popBackStack() },
+          onEditPage = { navController.navigate(Routes.editPage(folderId, it)) },
           onOpenSettings = { navController.openSettings() },
+        )
+      }
+
+      composable(
+        Routes.EDIT_PAGE,
+        arguments = listOf(FolderIdArgument, navArgument(Routes.ARG_PAGE_ID) { type = NavType.LongType }),
+      ) { entry ->
+        val folderId = entry.arguments?.getLong(Routes.ARG_FOLDER_ID) ?: return@composable
+        val pageId = entry.arguments?.getLong(Routes.ARG_PAGE_ID) ?: return@composable
+        PageEditorScreen(
+          folderId = folderId,
+          pageId = pageId,
+          viewModel = viewModel,
+          onClose = { navController.popBackStack() },
         )
       }
 
