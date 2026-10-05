@@ -279,7 +279,7 @@ fun FolderScreen(
                 pageCount = pages.size,
                 analyzedCount = analyzedCount,
                 analyzingCount = analyzingCount,
-                onAnalyze = { requireApiKey { viewModel.analyze(pages.filterNot { it.isAnalyzed }) } },
+                onAnalyze = { requireApiKey { viewModel.analyze(pages.filterNot { it.isAnalyzed }, reportErrors = true) } },
                 onOpenAssistant = { requireApiKey(onOpenAssistant) },
                 modifier = Modifier.padding(bottom = 6.dp),
               )
@@ -404,7 +404,7 @@ private fun StudyToolsCard(
             when {
               analyzingCount > 0 -> "Analyzing ${pageCountLabel(analyzingCount)}…"
               remaining == 0 -> "All pages analyzed"
-              else -> "$analyzedCount of $pageCount pages analyzed"
+              else -> "$analyzedCount of ${pageCountLabel(pageCount)} analyzed"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

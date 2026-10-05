@@ -206,8 +206,12 @@ class NoteViewModel(
 
   // region Analysis
 
-  /** Analyzes the pages one after another. Stops early on key or quota errors. */
-  fun analyze(pages: List<Page>) {
+  /**
+   * Analyzes the pages one after another and stops early on key or quota errors.
+   * Errors are always kept per page; [reportErrors] also shows them as a message, for
+   * callers that don't display the per-page error themselves.
+   */
+  fun analyze(pages: List<Page>, reportErrors: Boolean = false) {
     val queued = pages.filter { it.id !in _analyzingPageIds.value }
     if (queued.isEmpty()) return
     val queuedIds = queued.map { it.id }.toSet()
@@ -215,6 +219,8 @@ class NoteViewModel(
     _analysisErrors.update { it - queuedIds }
 
     viewModelScope.launch {
+      var failedCount = 0
+      var lastError: String? = null
       try {
         for (page in queued) {
           val result = gemini.analyzePage(repository.pageFile(page))
@@ -225,13 +231,18 @@ class NoteViewModel(
             .onFailure { error ->
               val message = error.message ?: "Analysis failed."
               _analysisErrors.update { it + (page.id to message) }
-              if (queued.size > 1) showMessage(message)
+              failedCount++
+              lastError = message
             }
           _analyzingPageIds.update { it - page.id }
           if ((result.exceptionOrNull() as? GeminiException)?.stopsBatch == true) break
         }
       } finally {
         _analyzingPageIds.update { it - queuedIds }
+      }
+      val error = lastError
+      if (reportErrors && error != null) {
+        showMessage(if (failedCount == 1) error else "Couldn't analyze $failedCount pages. $error")
       }
     }
   }
